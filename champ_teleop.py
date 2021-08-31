@@ -100,18 +100,29 @@ CTRL-C to quit
         self.velocity_publisher.publish(twist)
 
         body_pose_lite = PoseLite()
-        body_pose_lite.x = 0
+        if(data.axes[7] < 0):
+            #Send Stand mode
+            body_pose_lite.x = data.axes[7] + 2
+        elif(data.axes[7] > 0):
+            #Send Walk mode
+            body_pose_lite.x = data.axes[7] + 1
+
+        #body_pose_lite.x = data.axes[7] #For Walk mode and stand Mode enable
         body_pose_lite.y = 0
         body_pose_lite.roll = (not data.buttons[5]) *-data.axes[3] * 0.349066
         body_pose_lite.pitch = data.axes[4] * 0.174533
         body_pose_lite.yaw = data.buttons[5] * data.axes[3] * 0.436332
-        if data.axes[5] < 0:
-            body_pose_lite.z = data.axes[5] * 0.5
+        if data.axes[5] != 1:
+            body_pose_lite.z = (data.axes[5] - 1)/ 4
+        elif data.axes[2] != 1:
+            body_pose_lite.z = -(data.axes[2] - 1)/ 4
 
         self.pose_lite_publisher.publish(body_pose_lite)
 
         body_pose = Pose()
         body_pose.position.z = body_pose_lite.z
+        body_pose.position.x = body_pose_lite.x
+        body_pose.position.y = body_pose_lite.y
 
         quaternion = tf.transformations.quaternion_from_euler(body_pose_lite.roll, body_pose_lite.pitch, body_pose_lite.yaw)
         body_pose.orientation.x = quaternion[0]
@@ -201,7 +212,7 @@ CTRL-C to quit
         return "currently:\tspeed %s\tturn %s " % (speed,turn)
 
     def map(self, x, in_min, in_max, out_min, out_max):
-        return (x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
+        return (x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min
 
 if __name__ == "__main__":
     rospy.init_node('champ_teleop')
