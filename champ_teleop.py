@@ -10,6 +10,7 @@ from sensor_msgs.msg import Joy
 from geometry_msgs.msg import Twist
 from champ_msgs.msg import Pose as PoseLite
 from geometry_msgs.msg import Pose as Pose
+from std_msgs.msg import UInt8
 import tf
 
 import sys, select, termios, tty
@@ -18,9 +19,11 @@ import numpy as np
 class Teleop:
     def __init__(self):
         self.velocity_publisher = rospy.Publisher('cmd_vel', Twist, queue_size = 1)
+        #self.velocity_publisher = rospy.Publisher('cmd_vel/smooth', Twist, queue_size = 1)
         self.pose_lite_publisher = rospy.Publisher('body_pose/raw', PoseLite, queue_size = 1)
         self.pose_publisher = rospy.Publisher('body_pose', Pose, queue_size = 1)
         self.joy_subscriber = rospy.Subscriber('joy', Joy, self.joy_callback)
+        self.mode_publisher = rospy.Publisher('control_mode', UInt8, queue_size=1)
         self.swing_height = rospy.get_param("gait/swing_height", 0)
         self.nominal_height = rospy.get_param("gait/nominal_height", 0)
 
@@ -89,23 +92,35 @@ CTRL-C to quit
         
         self.poll_keys()
 
+    def joy_mapping(self, x, a):
+        if(x < 0):
+            sign = -1
+        else: sign = 1
+
+        return sign * pow(x, a)
+
     def joy_callback(self, data):
+        mode = UInt8()
         twist = Twist()
-        twist.linear.x = data.axes[1] * self.speed
-        twist.linear.y = data.buttons[4] * data.axes[0] * self.speed
+        twist.linear.x =  self.joy_mapping(data.axes[1], 2) * self.speed #data.axes[1] * self.speed
+        twist.linear.y =  data.buttons[4] * self.joy_mapping(data.axes[0], 2) * self.speed #data.buttons[4] * data.axes[0] * self.speed
         twist.linear.z = 0.0
         twist.angular.x = 0.0
         twist.angular.y = 0.0
-        twist.angular.z = (not data.buttons[4]) * data.axes[0] * self.turn
+        twist.angular.z = (not data.buttons[4]) * self.joy_mapping(data.axes[0], 2) * self.turn #(not data.buttons[4]) * data.axes[0] * self.turn
         self.velocity_publisher.publish(twist)
 
         body_pose_lite = PoseLite()
         if(data.axes[7] < 0):
             #Send Stand mode
-            body_pose_lite.x = data.axes[7] + 2
+            mode.data = 2
+            #body_pose_lite.x = data.axes[7] + 2
+            print(mode.data)
         elif(data.axes[7] > 0):
             #Send Walk mode
-            body_pose_lite.x = data.axes[7] + 1
+            mode.data = 1
+            #body_pose_lite.x = data.axes[7] + 1
+            print(mode.data)
 
         #body_pose_lite.x = data.axes[7] #For Walk mode and stand Mode enable
         body_pose_lite.y = 0
@@ -131,6 +146,7 @@ CTRL-C to quit
         body_pose.orientation.w = quaternion[3]
 
         self.pose_publisher.publish(body_pose)
+        self.mode_publisher.publish(mode)
 
     def poll_keys(self):
         self.settings = termios.tcgetattr(sys.stdin)
