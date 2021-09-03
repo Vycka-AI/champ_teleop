@@ -29,6 +29,7 @@ class Teleop:
 
         self.speed = rospy.get_param("~speed", 0.5)
         self.turn = rospy.get_param("~turn", 1.0)
+        self.drift_correction = 0.0
 
         self.msg = """
 Reading from the keyboard  and Publishing to Twist!
@@ -103,7 +104,7 @@ CTRL-C to quit
         mode = UInt8()
         twist = Twist()
         twist.linear.x =  self.joy_mapping(data.axes[1], 2) * self.speed #data.axes[1] * self.speed
-        twist.linear.y =  data.buttons[4] * self.joy_mapping(data.axes[0], 2) * self.speed #data.buttons[4] * data.axes[0] * self.speed
+        twist.linear.y =  self.drift_correction + data.buttons[4] * self.joy_mapping(data.axes[0], 2) * self.speed #data.buttons[4] * data.axes[0] * self.speed
         twist.linear.z = 0.0
         twist.angular.x = 0.0
         twist.angular.y = 0.0
@@ -113,14 +114,12 @@ CTRL-C to quit
         body_pose_lite = PoseLite()
         if(data.axes[7] < 0):
             #Send Stand mode
-            mode.data = 2
-            #body_pose_lite.x = data.axes[7] + 2
-            print(mode.data)
+            mode.data = 1
+            #print(mode.data)
         elif(data.axes[7] > 0):
             #Send Walk mode
-            mode.data = 1
-            #body_pose_lite.x = data.axes[7] + 1
-            print(mode.data)
+            mode.data = 2
+            #print(mode.data)
 
         #body_pose_lite.x = data.axes[7] #For Walk mode and stand Mode enable
         body_pose_lite.y = 0
@@ -131,6 +130,11 @@ CTRL-C to quit
             body_pose_lite.z = (data.axes[5] - 1)/ 4
         elif data.axes[2] != 1:
             body_pose_lite.z = -(data.axes[2] - 1)/ 4
+
+        if data.axes[6] == 1:
+            self.drift_correction += 0.01
+        elif data.axes[6] == -1:
+            self.drift_correction -= 0.01
 
         self.pose_lite_publisher.publish(body_pose_lite)
 
