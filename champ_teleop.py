@@ -104,7 +104,10 @@ CTRL-C to quit
         mode = UInt8()
         twist = Twist()
         twist.linear.x =  self.joy_mapping(data.axes[1], 2) * self.speed #data.axes[1] * self.speed
-        twist.linear.y =  self.drift_correction + data.buttons[4] * self.joy_mapping(data.axes[0], 2) * self.speed #data.buttons[4] * data.axes[0] * self.speed
+        if data.axes[1] == 0 and data.axes[0]:
+            twist.linear.y =  self.drift_correction + data.buttons[4] * self.joy_mapping(data.axes[0], 2) * self.speed #data.buttons[4] * data.axes[0] * self.speed
+        else:
+            twist.linear.y =  data.buttons[4] * self.joy_mapping(data.axes[0], 2) * self.speed #data.buttons[4] * data.axes[0] * self.speed
         twist.linear.z = 0.0
         twist.angular.x = 0.0
         twist.angular.y = 0.0
