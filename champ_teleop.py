@@ -30,7 +30,6 @@ class Teleop:
         self.speed = rospy.get_param("~speed", 0.5)
         self.turn = rospy.get_param("~turn", 1.0)
         self.drift_correction = 0.0
-
         self.msg = """
 Reading from the keyboard  and Publishing to Twist!
 ---------------------------
@@ -101,17 +100,24 @@ CTRL-C to quit
         return sign * pow(x, a)
 
     def joy_callback(self, data):
+        data_list = list(data.axes)
         mode = UInt8()
         twist = Twist()
-        twist.linear.x =  self.joy_mapping(data.axes[1], 2) * self.speed #data.axes[1] * self.speed
+        #joystick quantization
+        if(abs(data.axes[1]) > abs(data.axes[0]) and abs(data.axes[0]) < 0.4): #x_axis priority
+            data_list[0] = 0.0
+        elif(abs(data.axes[0]) > abs(data.axes[1]) and abs(data.axes[1]) < 0.4): #y_axis priority
+            data_list[1] = 0.0
+
+        twist.linear.x =  self.joy_mapping(data_list[1], 2) * self.speed #data.axes[1] * self.speed
         if data.axes[1] == 0 and data.axes[0]:
-            twist.linear.y =  self.drift_correction + data.buttons[4] * self.joy_mapping(data.axes[0], 2) * self.speed #data.buttons[4] * data.axes[0] * self.speed
+            twist.linear.y =  self.drift_correction + data.buttons[4] * self.joy_mapping(data_list[0], 2) * self.speed #data.buttons[4] * data.axes[0] * self.speed
         else:
-            twist.linear.y =  data.buttons[4] * self.joy_mapping(data.axes[0], 2) * self.speed #data.buttons[4] * data.axes[0] * self.speed
+            twist.linear.y =  data.buttons[4] * self.joy_mapping(data_list[0], 2) * self.speed #data.buttons[4] * data.axes[0] * self.speed
         twist.linear.z = 0.0
         twist.angular.x = 0.0
         twist.angular.y = 0.0
-        twist.angular.z = (not data.buttons[4]) * self.joy_mapping(data.axes[0], 2) * self.turn #(not data.buttons[4]) * data.axes[0] * self.turn
+        twist.angular.z = (not data.buttons[4]) * self.joy_mapping(data_list[0], 2) * self.turn #(not data.buttons[4]) * data.axes[0] * self.turn
         self.velocity_publisher.publish(twist)
 
         body_pose_lite = PoseLite()
@@ -129,11 +135,16 @@ CTRL-C to quit
         body_pose_lite.roll = (not data.buttons[5]) *-data.axes[3] * 0.349066
         body_pose_lite.pitch = data.axes[4] * 0.174533
         body_pose_lite.yaw = data.buttons[5] * data.axes[3] * 0.436332
-        if data.axes[5] != 1:
-            body_pose_lite.z = (data.axes[5] - 1)/ 4
-        elif data.axes[2] != 1:
-            body_pose_lite.z = -(data.axes[2] - 1)/ 4
 
+        #BodyHeight
+        if(data.buttons[7] > 0):
+            if data.axes[5] != 1:
+                body_pose_lite.z = (data.axes[5] - 1)/ 4
+        elif(data.buttons[6] > 0):
+            if data.axes[2] != 1:
+                body_pose_lite.z = -(data.axes[2] - 1)/ 4
+
+        #DriftCompensation
         if data.axes[6] == 1:
             self.drift_correction += 0.01
         elif data.axes[6] == -1:
