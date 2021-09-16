@@ -28,6 +28,9 @@ class Teleop:
         self.nominal_height = rospy.get_param("gait/nominal_height", 0)
         self.prev_mode = 0;
 
+        self.axis5 = 0
+        self.axis2 = 0
+
         self.speed = rospy.get_param("~speed", 0.5)
         self.turn = rospy.get_param("~turn", 1.0)
         self.drift_correction = 0.0
@@ -131,7 +134,7 @@ CTRL-C to quit
             #Send Walk mode
             mode.data = 2
             #print(mode.data)
-        elif(data.buttons[2] > 0):
+        elif(data.buttons[3] > 0):
             #Send stand mode
             mode.data = 0
 
@@ -142,12 +145,25 @@ CTRL-C to quit
         body_pose_lite.yaw = data.buttons[5] * data.axes[3] * 0.436332
 
         #BodyHeight
-        if(data.buttons[7] > 0):
-            if data.axes[5] != 1:
-                body_pose_lite.z = (data.axes[5] - 1)/ 4
-        elif(data.buttons[6] > 0):
-            if data.axes[2] != 1:
-                body_pose_lite.z = -(data.axes[2] - 1)/ 4
+        z = 0
+
+        if self.axis5 == 0:
+            self.axis5v = data.axes[5]
+            self.axis5 = 1
+        elif self.axis5 == 1 and self.axis5v != data.axes[5]:
+            self.axis5 = 2
+        if self.axis5 == 2:
+            z += (data.axes[5] - 1) / 4
+
+        if self.axis2 == 0:
+            self.axis2v = data.axes[2]
+            self.axis2 = 1
+        elif self.axis2 == 1 and self.axis2v != data.axes[2]:
+            self.axis2 = 2
+        if self.axis2 == 2:
+            z -= (data.axes[2] - 1) / 4
+
+        body_pose_lite.z = z
 
         #DriftCompensation
         if data.axes[6] == 1:
