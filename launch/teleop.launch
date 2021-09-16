@@ -1,6 +1,7 @@
 <launch>
     <arg name="joy"  default="false"/>
     <arg name="dev"  default="/dev/input/js0"/>
+	<remap from="/cmd_vel" to="/move_vel"/>
 
     <node if="$(arg joy)" name="joy" pkg="joy" type="joy_node" required="true">
         <param name="autorepeat_rate" value="5" />
