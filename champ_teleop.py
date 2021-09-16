@@ -26,6 +26,7 @@ class Teleop:
         self.mode_publisher = rospy.Publisher('control_mode', UInt8, queue_size=1)
         self.swing_height = rospy.get_param("gait/swing_height", 0)
         self.nominal_height = rospy.get_param("gait/nominal_height", 0)
+        self.prev_mode = 0;
 
         self.speed = rospy.get_param("~speed", 0.5)
         self.turn = rospy.get_param("~turn", 1.0)
@@ -102,6 +103,7 @@ CTRL-C to quit
     def joy_callback(self, data):
         data_list = list(data.axes)
         mode = UInt8()
+        mode.data = self.prev_mode
         twist = Twist()
         #joystick quantization
         if(abs(data.axes[1]) > abs(data.axes[0]) and abs(data.axes[0]) < 0.4): #x_axis priority
@@ -129,6 +131,9 @@ CTRL-C to quit
             #Send Walk mode
             mode.data = 2
             #print(mode.data)
+        elif(data.buttons[2] > 0):
+            #Send stand mode
+            mode.data = 0
 
         #body_pose_lite.x = data.axes[7] #For Walk mode and stand Mode enable
         body_pose_lite.y = 0
@@ -165,6 +170,7 @@ CTRL-C to quit
 
         self.pose_publisher.publish(body_pose)
         self.mode_publisher.publish(mode)
+        self.prev_mode = mode.data
 
     def poll_keys(self):
         self.settings = termios.tcgetattr(sys.stdin)
